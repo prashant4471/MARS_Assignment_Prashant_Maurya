@@ -1,0 +1,33 @@
+flowchart LR
+  subgraph CH[Sales channels]
+    WEB[Website webhook]
+    NY[Nykaa webhook]
+    FK[Flipkart poller<br/>every 2 min]
+    BL[Blinkit webhook + daily CSV]
+  end
+
+  WEB --> AD
+  NY --> AD
+  FK --> AD
+  BL --> AD
+  AD[Channel adapters<br/>authenticate · validate · normalize]
+  AD --> PG[(RDS PostgreSQL<br/>inbox · orders · inventory<br/>allocations · ledger · outbox)]
+  PG <-->|claim inbox / commit transaction| OW[Order API / workers<br/>NestJS on ECS Fargate<br/>bounded per channel]
+  WEB -. checkout reserve .-> OW
+  PG --> REL[Outbox relay]
+  REL --> Q[SQS Standard<br/>ERP + 4 order-action + 4 stock queues<br/>DLQ per queue]
+  Q --> EW[ERP worker]
+  EW --> BC[Business Central API]
+  Q --> AW[Per-channel order-action workers]
+  AW --> REJ[Channel reject / cancel APIs]
+  Q --> SW[Per-channel stock workers<br/>coalesce latest SKU state]
+  RD[(ElastiCache Redis<br/>token buckets only)]
+  SW -. rate limits .-> RD
+  SW --> STOCK[Website · Nykaa<br/>Flipkart · Blinkit stock APIs]
+
+  OPS[Ops console / retry API] --> PG
+  OW --> OBS[CloudWatch metrics,<br/>logs and alarms]
+  SW --> OBS
+  EW --> OBS
+  AW --> OBS
+  Q --> OBS

@@ -1,0 +1,122 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1780 820" role="img" aria-labelledby="title desc">
+  <title id="title">MARS order and inventory sync architecture</title>
+  <desc id="desc">Channel adapters persist events in PostgreSQL. Order workers reserve inventory transactionally. An outbox relay publishes to isolated ERP, order-action, and channel stock queues. Redis holds rate limits and CloudWatch monitors services.</desc>
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto">
+      <path d="M0,0 L10,4 L0,8 z" fill="#475569"/>
+    </marker>
+    <marker id="arrow-start" markerWidth="10" markerHeight="8" refX="1" refY="4" orient="auto">
+      <path d="M10,0 L0,4 L10,8 z" fill="#475569"/>
+    </marker>
+    <style>
+      text { font-family: Arial, sans-serif; fill: #172033; }
+      .title { font-size: 26px; font-weight: 700; }
+      .heading { font-size: 17px; font-weight: 700; }
+      .label { font-size: 14px; }
+      .small { font-size: 12px; fill: #475569; }
+      .box { stroke: #334155; stroke-width: 1.5; rx: 12; }
+      .flow { fill: none; stroke: #475569; stroke-width: 2; marker-end: url(#arrow); }
+      .both { fill: none; stroke: #475569; stroke-width: 2; marker-start: url(#arrow-start); marker-end: url(#arrow); }
+      .optional { fill: none; stroke: #64748b; stroke-width: 1.7; stroke-dasharray: 6 5; marker-end: url(#arrow); }
+    </style>
+  </defs>
+
+  <text x="28" y="42" class="title">MARS · Order &amp; Inventory Sync</text>
+  <text x="28" y="68" class="small">PostgreSQL is the source of truth; external delivery is asynchronous and isolated by channel.</text>
+
+  <rect x="25" y="105" width="245" height="390" rx="16" fill="#f1f5f9" stroke="#cbd5e1"/>
+  <text x="45" y="135" class="heading">Sales channels</text>
+  <rect x="45" y="155" width="205" height="65" class="box" fill="#e0f2fe"/>
+  <text x="60" y="183" class="heading">Website</text><text x="60" y="204" class="small">order webhook · direct stock API</text>
+  <rect x="45" y="235" width="205" height="65" class="box" fill="#e0f2fe"/>
+  <text x="60" y="263" class="heading">Nykaa</text><text x="60" y="284" class="small">webhook · 5 stock calls/sec</text>
+  <rect x="45" y="315" width="205" height="65" class="box" fill="#e0f2fe"/>
+  <text x="60" y="343" class="heading">Flipkart</text><text x="60" y="364" class="small">poll every 2 min · bulk stock API</text>
+  <rect x="45" y="395" width="205" height="65" class="box" fill="#e0f2fe"/>
+  <text x="60" y="423" class="heading">Blinkit</text><text x="60" y="444" class="small">webhook / CSV · REST stock</text>
+
+  <rect x="325" y="260" width="190" height="100" class="box" fill="#fef3c7"/>
+  <text x="420" y="292" text-anchor="middle" class="heading">Channel adapters</text>
+  <text x="420" y="316" text-anchor="middle" class="label">authenticate · validate</text>
+  <text x="420" y="339" text-anchor="middle" class="label">normalize event</text>
+
+  <rect x="565" y="200" width="255" height="160" class="box" fill="#dcfce7"/>
+  <text x="692" y="232" text-anchor="middle" class="heading">RDS PostgreSQL</text>
+  <text x="692" y="259" text-anchor="middle" class="label">durable inbox + dedup</text>
+  <text x="692" y="283" text-anchor="middle" class="label">orders · inventory · allocations</text>
+  <text x="692" y="307" text-anchor="middle" class="label">ledger · transactional outbox</text>
+  <text x="692" y="337" text-anchor="middle" class="small">system of record</text>
+
+  <rect x="870" y="200" width="205" height="112" class="box" fill="#fef3c7"/>
+  <text x="972" y="234" text-anchor="middle" class="heading">Order workers</text>
+  <text x="972" y="260" text-anchor="middle" class="label">NestJS · ECS Fargate</text>
+  <text x="972" y="281" text-anchor="middle" class="small">bounded per channel</text>
+  <text x="972" y="300" text-anchor="middle" class="small">row lock + ledger transaction</text>
+
+  <rect x="565" y="410" width="230" height="78" class="box" fill="#ede9fe"/>
+  <text x="680" y="440" text-anchor="middle" class="heading">ElastiCache Redis</text>
+  <text x="680" y="465" text-anchor="middle" class="small">transient channel token buckets only</text>
+
+  <rect x="1110" y="200" width="180" height="78" class="box" fill="#fef3c7"/>
+  <text x="1200" y="231" text-anchor="middle" class="heading">Outbox relay</text>
+  <text x="1200" y="254" text-anchor="middle" class="small">publish committed work</text>
+
+  <rect x="1320" y="165" width="230" height="165" class="box" fill="#ffedd5"/>
+  <text x="1435" y="196" text-anchor="middle" class="heading">Amazon SQS</text>
+  <text x="1435" y="222" text-anchor="middle" class="label">ERP + 4 order-action queues</text>
+  <text x="1435" y="247" text-anchor="middle" class="label">4 stock queues</text>
+  <text x="1435" y="272" text-anchor="middle" class="small">DLQ per queue</text>
+  <text x="1435" y="299" text-anchor="middle" class="small">isolated retries</text>
+
+  <rect x="1590" y="115" width="165" height="75" class="box" fill="#dbeafe"/>
+  <text x="1672" y="146" text-anchor="middle" class="heading">ERP worker</text>
+  <text x="1672" y="170" text-anchor="middle" class="small">idempotent retry</text>
+  <rect x="1590" y="220" width="165" height="75" class="box" fill="#e0f2fe"/>
+  <text x="1672" y="251" text-anchor="middle" class="heading">Business Central</text>
+  <text x="1672" y="275" text-anchor="middle" class="small">order API</text>
+  <rect x="1590" y="310" width="165" height="75" class="box" fill="#fce7f3"/>
+  <text x="1672" y="338" text-anchor="middle" class="heading">Order-action worker</text>
+  <text x="1672" y="359" text-anchor="middle" class="small">per channel · reject/cancel</text>
+  <text x="1672" y="378" text-anchor="middle" class="small">idempotent API call</text>
+
+  <rect x="1330" y="395" width="220" height="105" class="box" fill="#e0f2fe"/>
+  <text x="1440" y="428" text-anchor="middle" class="heading">Stock workers</text>
+  <text x="1440" y="453" text-anchor="middle" class="label">coalesce latest SKU state</text>
+  <text x="1440" y="477" text-anchor="middle" class="small">per-channel rate limiter</text>
+  <rect x="1590" y="405" width="165" height="90" class="box" fill="#e0f2fe"/>
+  <text x="1672" y="438" text-anchor="middle" class="heading">Channel stock APIs</text>
+  <text x="1672" y="463" text-anchor="middle" class="small">absolute desired quantity</text>
+  <text x="1672" y="482" text-anchor="middle" class="small">acknowledge published version</text>
+
+  <rect x="900" y="430" width="190" height="75" class="box" fill="#f1f5f9"/>
+  <text x="995" y="461" text-anchor="middle" class="heading">Ops console</text>
+  <text x="995" y="484" text-anchor="middle" class="small">failed syncs · retry one item</text>
+
+  <rect x="1110" y="600" width="220" height="75" class="box" fill="#f1f5f9"/>
+  <text x="1220" y="632" text-anchor="middle" class="heading">CloudWatch</text>
+  <text x="1220" y="656" text-anchor="middle" class="small">metrics · logs · alarms</text>
+
+  <path d="M270 186 H300 V287 H325" class="flow"/>
+  <path d="M250 190 V85 H972 V200" class="optional"/>
+  <path d="M270 267 H310 V298 H325" class="flow"/>
+  <path d="M270 347 H310 V310 H325" class="flow"/>
+  <path d="M270 427 H300 V322 H325" class="flow"/>
+  <path d="M515 310 H565" class="flow"/>
+  <path d="M820 247 H870" class="both"/>
+  <path d="M760 200 V145 H1098 V239 H1110" class="flow"/>
+  <path d="M1290 239 H1330" class="flow"/>
+  <path d="M1550 210 H1570 V152 H1590" class="flow"/>
+  <path d="M1672 190 V220" class="flow"/>
+  <path d="M1550 260 H1570 V347 H1590" class="flow"/>
+  <path d="M1435 330 V395" class="flow"/>
+  <path d="M1550 447 H1590" class="flow"/>
+  <path d="M1330 470 V535 H850 V488 H795" class="optional"/>
+  <path d="M900 468 H845 V360 H760" class="both"/>
+  <path d="M1055 312 H1098 V637 H1110" class="optional"/>
+  <path d="M1440 500 V560 H1330 V637" class="optional"/>
+  <path d="M1672 495 V560 H1330 V637" class="optional"/>
+  <path d="M1755 152 H1770 V575 H1330 V600" class="optional"/>
+  <path d="M1220 278 V600" class="optional"/>
+
+  <text x="28" y="750" class="small">Solid arrows: durable flow · dashed arrows: checkout reserve, rate limits and observability · ops uses the database API</text>
+</svg>
